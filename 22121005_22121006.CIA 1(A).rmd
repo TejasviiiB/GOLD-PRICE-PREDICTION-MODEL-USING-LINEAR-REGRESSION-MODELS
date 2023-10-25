@@ -1,0 +1,234 @@
+---
+title: "CIA 1 (A)"
+author: "Aishwarya Thomas & Tejasvi"
+date: "5/28/2023"
+output: 
+  word_document
+---
+```{r include=FALSE}
+#Backward elimination 
+
+# load library
+library(readxl)
+
+# load the data set
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+summary(EDA_Dataset)
+
+# full model with all predictors
+full_model <- lm(GOLD ~ ., data = EDA_Dataset)
+
+# perform backward selection
+backward_model <- step(full_model, direction = "backward")
+
+# print the final model
+print(backward_model)
+```
+
+```{r}
+#Forward Selection
+
+# load the dataset
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+
+# minimal model with no predictors
+start_model <- lm(GOLD ~ 1, data = EDA_Dataset)
+
+# list of potential predictors
+scope <- list(lower = start_model, upper = lm(GOLD ~ ., data = EDA_Dataset))
+
+# perform forward selection
+forward_model <- step(start_model, direction = "forward", scope = scope)
+
+# print the final model
+print(forward_model)
+```
+
+```{r}
+#CROSS VALIDATION
+install.packages("boot")
+# load the required packages
+library(boot)
+# load the EDA_Datasetdata <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+# create a linear model
+model <- glm(GOLD ~ ., data = EDA_Dataset)
+# define the cross-validation method
+cv.error <- cv.glm(EDA_Dataset, model, K = 10)
+# print the cross-validation error
+print(cv.error$delta)
+```
+
+```{r}
+# REGULARIZATION model
+
+library(glmnet)
+
+# load the glmnet package
+library(glmnet)
+
+# load the EDA_Dataset dataset
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+
+# prepare matrix of predictors and response variable
+x <- model.matrix(GOLD ~ ., EDA_Dataset)[,-1] # remove intercept column
+y <- EDA_Dataset$GOLD
+
+# fit ridge regression model
+ridge_model <- glmnet(x, y, alpha = 0)
+
+# fit lasso regression model
+lasso_model <- glmnet(x, y, alpha = 1)
+
+# print models
+print(ridge_model)
+print(lasso_model)
+```
+
+```{r}
+# perform cross-validation for ridge model
+cv.ridge <- cv.glmnet(x, y, alpha = 0)
+# perform cross-validation for lasso model
+cv.lasso <- cv.glmnet(x, y, alpha = 1)
+# print optimal lambda values
+print(cv.ridge$lambda.min)
+print(cv.lasso$lambda.min)
+```
+
+```{r}
+#Ridge Regression
+# Load EDA_Dataset
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+# Define the response variable and predictors
+y <- EDA_Dataset$GOLD
+X <- as.matrix(EDA_Dataset[, -1]) # Exclude the mpg column
+# Fit a ridge regression model
+ridge_model <- glmnet(X, y, alpha = 0, lambda = 1)
+# Print the coefficients
+print(coef(ridge_model))
+```
+
+```{r}
+#Lasso Regression Model
+# Fit a lasso regression model
+lasso_model <- glmnet(X, y, alpha = 1, lambda = 1)
+# Print the coefficients
+print(coef(lasso_model))
+```
+
+```{r}
+#MODEL COMPARISION
+# Load necessary libraries
+library(car)
+library(glmnet)
+library(boot)
+library(caret)
+
+# Prepare the data
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+x <- model.matrix(GOLD~ ., EDA_Dataset)[,-1]
+y <- EDA_Dataset$GOLD
+
+# Linear regression with forward and backward selection
+start_model <- lm(GOLD ~ 1, data = EDA_Dataset)
+scope <- list(lower = start_model, upper = lm(GOLD ~ ., data = EDA_Dataset))
+forward_model <- step(start_model, direction = "forward", scope = scope)
+backward_model <- step(lm(GOLD ~ ., data = EDA_Dataset), direction = "backward")
+
+# Cross-validation model
+cv_model <- train(GOLD ~ ., data = EDA_Dataset, method = "lm", trControl = trainControl(method = "cv", number = 5))
+
+# Regularization models
+ridge_model <- glmnet(x, y, alpha = 0)
+lasso_model <- glmnet(x, y, alpha = 1)
+
+# Predict and calculate MSE
+predictions_forward <- predict(forward_model, EDA_Dataset)
+predictions_backward <- predict(backward_model, EDA_Dataset)
+predictions_cv <- predict(cv_model, EDA_Dataset)
+predictions_ridge <- predict(ridge_model, s = cv.glmnet(x, y, alpha = 0)$lambda.min, newx = x)
+predictions_lasso <- predict(lasso_model, s = cv.glmnet(x, y, alpha = 1)$lambda.min, newx = x)
+mse_forward <- mean((EDA_Dataset$GOLD - predictions_forward)^2)
+mse_backward <- mean((EDA_Dataset$GOLD - predictions_backward)^2)
+mse_cv <- mean((EDA_Dataset$GOLD - predictions_cv)^2)
+mse_ridge <- mean((EDA_Dataset$GOLD - predictions_ridge)^2)
+mse_lasso <- mean((EDA_Dataset$GOLD - predictions_lasso)^2)
+
+# Print MSE for each model
+cat("MSE for forward selection: ", mse_forward, "\n")
+cat("MSE for backward selection: ", mse_backward, "\n")
+cat("MSE for cross-validation model: ", mse_cv, "\n")
+cat("MSE for ridge regression: ", mse_ridge, "\n")
+cat("MSE for lasso regression: ", mse_lasso, "\n")
+
+```
+
+```{r}
+#RESIDUAL ANALYSIS
+# Load necessary libraries
+library(car)
+library(glmnet)
+library(boot)
+library(caret)
+
+# Plot residuals for each model
+plot(resid(forward_model), main="Residual Plot for Forward Selection
+Model")
+plot(resid(backward_model), main="Residual Plot for Backward Selectio+n
+Model")
+
+plot(resid(cv_model$finalModel), main="Residual Plot for Cross-
+Validation Model")
+
+plot(predict(forward_model, EDA_Dataset) - EDA_Dataset$GOLD, main="Residual Plot
+for Ridge Regression Model")
+plot(predict(backward_model, EDA_Dataset) - EDA_Dataset$GOLD, main="Residual Plot
+for Lasso Regression Model")
+# Q-Q plots for each model
+qqPlot(resid(forward_model), main="Q-Q Plot for Forward Selection
+Model")
+qqPlot(resid(backward_model), main="Q-Q Plot for Backward Selection
+Model")
+qqPlot(resid(cv_model$finalModel), main="Q-Q Plot for Cross-Validation
+Model")
+qqPlot(predict(forward_model, EDA_Dataset) - EDA_Dataset$GOLD, main="Q-Q Plot for
+Ridge Regression Model")
+qqPlot(predict(backward_model, EDA_Dataset) - EDA_Dataset$GOLD, main="Q-Q Plot
+for Lasso Regression Model")
+```
+
+```{r}
+#PLOT RESIDUAL
+# Load the necessary library
+library(ggplot2)
+# Fit a model (as an example, we'll use a simple linear regression)
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+model <- lm(GOLD ~., data = EDA_Dataset)
+# Generate residuals
+residuals <- resid(model)
+# Generate a data frame for plotting
+plot_data <- data.frame(
+Fitted = fitted(model),
+Residuals = residuals
+)
+# Generate the plot
+ggplot(plot_data, aes(x = Fitted, y = Residuals)) +
+geom_point() +
+geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+theme_minimal() +
+labs(x = "Fitted values", y = "Residuals", title = "Residuals vs
+Fitted values")
+```
+
+```{r}
+#QQ PLOT 
+# Load the necessary library
+
+library(ggplot2)
+# Fit a model (as an example, we'll use a simple linear regression)
+data <- read_excel("C:/Users/tejas/OneDrive/Desktop/EDA Dataset.xlsx")
+model <- lm(GOLD ~., data = EDA_Dataset)
+# Use the qqnorm() function to create the QQ plot for the residuals
+qqnorm(resid(model))
+qqline(resid(model))
+```
+
